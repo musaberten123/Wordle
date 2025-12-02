@@ -1,4 +1,4 @@
-// server.js – Render uyumlu backend + hesap/puan API’si
+// server.js – backend + hesap/puan API’si + basit admin API
 
 const express = require("express");
 const fs = require("fs");
@@ -6,13 +6,16 @@ const path = require("path");
 
 const app = express();
 
-// Render için PORT değişkenini kullan
+// Render için PORT
 const PORT = process.env.PORT || 3000;
+
+// *** Admin anahtarı (sadece sen biliyorsun) ***
+const ADMIN_KEY = process.env.ADMIN_KEY || "musa-super-secret-123"; // İstersen değiştir
 
 // JSON parse
 app.use(express.json());
 
-// Statik dosyaları (index.html, script.js vs.) servis et
+// Statik dosyalar (index.html, script.js, style.css, vs.)
 app.use(express.static(path.join(__dirname)));
 
 // Hesap dosyası
@@ -22,7 +25,6 @@ const DATA_FILE = path.join(__dirname, "accounts-data.json");
 function loadAccounts() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      // Dosya yoksa temel yapı ile oluştur
       const initial = { accounts: {} };
       fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), "utf8");
       return initial.accounts;
@@ -48,8 +50,6 @@ function saveAccounts(accounts) {
   }
 }
 
-// Güvenlik açısından şifreyi plain text tutmak kötü ama
-// bu proje için basit tutuyoruz.
 function sanitizeAccount(acc) {
   return {
     username: acc.username,
@@ -58,43 +58,36 @@ function sanitizeAccount(acc) {
   };
 }
 
-// ---- API endpoint’leri ----
+// ---- Normal API endpoint’leri ----
 
-// Tüm hesapları döndür (frontend ilk açılışta çağırıyor)
+// Tüm hesaplar
 app.get("/api/accounts", (req, res) => {
   const accounts = loadAccounts();
   return res.json({ ok: true, accounts });
 });
 
-// Kayıt olun
+// Kayıt
 app.post("/api/register", (req, res) => {
   const { username, password } = req.body || {};
-
   const user = (username || "").trim();
   const pw = password || "";
 
   if (!user) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Kullanıcı adı boş olamaz." });
+    return res.status(400).json({ ok: false, message: "Kullanıcı adı boş olamaz." });
   }
   if (!pw) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Şifre boş olamaz." });
+    return res.status(400).json({ ok: false, message: "Şifre boş olamaz." });
   }
 
   const accounts = loadAccounts();
 
   if (accounts[user]) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Bu kullanıcı adı zaten kayıtlı." });
+    return res.status(400).json({ ok: false, message: "Bu kullanıcı adı zaten kayıtlı." });
   }
 
   accounts[user] = {
     username: user,
-    password: pw,      // uyarı: demo amaçlı
+    password: pw, // demo için düz metin
     score: 0,
     dailyPlayed: {}
   };
@@ -107,7 +100,7 @@ app.post("/api/register", (req, res) => {
   });
 });
 
-// Giriş yap
+// Giriş
 app.post("/api/login", (req, res) => {
   const { username, password } = req.body || {};
   const user = (username || "").trim();
@@ -117,14 +110,10 @@ app.post("/api/login", (req, res) => {
   const acc = accounts[user];
 
   if (!acc) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Böyle bir kullanıcı yok." });
+    return res.status(400).json({ ok: false, message: "Böyle bir kullanıcı yok." });
   }
   if (acc.password !== pw) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Şifre hatalı." });
+    return res.status(400).json({ ok: false, message: "Şifre hatalı." });
   }
 
   return res.json({
@@ -140,17 +129,13 @@ app.post("/api/addScore", (req, res) => {
   const s = Number(score) || 0;
 
   if (!user) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Kullanıcı adı gerekli." });
+    return res.status(400).json({ ok: false, message: "Kullanıcı adı gerekli." });
   }
 
   const accounts = loadAccounts();
   const acc = accounts[user];
   if (!acc) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Kullanıcı bulunamadı." });
+    return res.status(400).json({ ok: false, message: "Kullanıcı bulunamadı." });
   }
 
   acc.score = (acc.score || 0) + s;
@@ -168,9 +153,7 @@ app.post("/api/markDaily", (req, res) => {
   const accounts = loadAccounts();
   const acc = accounts[user];
   if (!acc) {
-    return res
-      .status(400)
-      .json({ ok: false, message: "Kullanıcı bulunamadı." });
+    return res.status(400).json({ ok: false, message: "Kullanıcı bulunamadı." });
   }
 
   acc.dailyPlayed = acc.dailyPlayed || {};
@@ -191,18 +174,43 @@ app.get("/api/leaderboard", (req, res) => {
 
   const limited = limit ? list.slice(0, limit) : list;
 
-  return res.json({
-    ok: true,
-    leaderboard: limited
-  });
+  return res.json({ ok: true, leaderboard: limited });
 });
 
-// Fallback (önemli değil ama dursun)
+// Sağlık kontrolü
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, status: "up" });
 });
 
-// Sunucuyu başlat
+// ---- ADMIN API (sadece sen kullanacaksın) ----
+
+// JSON’ı oku
+app.get("/api/admin/accounts", (req, res) => {
+  const key = req.query.key;
+  if (key !== ADMIN_KEY) {
+    return res.status(403).json({ ok: false, message: "Yetkisiz" });
+  }
+  const accounts = loadAccounts();
+  return res.json({ ok: true, accounts });
+});
+
+// JSON’ı kaydet
+app.post("/api/admin/accounts", (req, res) => {
+  const key = req.query.key;
+  if (key !== ADMIN_KEY) {
+    return res.status(403).json({ ok: false, message: "Yetkisiz" });
+  }
+
+  const { accounts } = req.body || {};
+  if (!accounts || typeof accounts !== "object") {
+    return res.status(400).json({ ok: false, message: "Geçersiz accounts yapısı." });
+  }
+
+  saveAccounts(accounts);
+  return res.json({ ok: true });
+});
+
+// Sunucu
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

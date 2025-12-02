@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle - Giriş Yap</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <h2>Giriş Yap</h2>
+    <form id="login-form">
+      <label>
+        Kullanıcı adı
+        <input type="text" id="login-username" required />
+      </label>
+      <label>
+        Şifre
+        <input type="password" id="login-password" required />
+      </label>
+      <label class="show-password">
+        <input type="checkbox" id="login-show-password" />
+        Şifreyi göster
+      </label>
+      <button type="submit">Giriş</button>
+      <p id="login-message" class="auth-message"></p>
+    </form>
+    <p>
+      Hesabın yok mu?
+      <a href="register.html">Üye ol</a> veya
+      <a href="index.html">Oyuna dön</a>
+    </p>
+  </div>
+
+  <script src="accounts.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('login-form');
+      const userEl = document.getElementById('login-username');
+      const pwEl = document.getElementById('login-password');
+      const msgEl = document.getElementById('login-message');
+      const showCb = document.getElementById('login-show-password');
+
+      showCb.addEventListener('change', () => {
+        pwEl.type = showCb.checked ? 'text' : 'password';
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msgEl.textContent = '';
+        const u = userEl.value.trim();
+        const p = pwEl.value;
+        const res = await loginAccount(u, p);
+        msgEl.textContent = res.message;
+        if (res.ok) {
+          window.location.href = 'index.html';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+

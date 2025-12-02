@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle Clone - Multi-Language</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="account-panel"></div>
+  <div id="score-board"></div>
+  <!-- Yanlış kelime bildirimi (sol üst köşe) -->
+  <div id="error-notification" class="error-notification"></div>
+  <div id="app">
+    <header>
+      <h1>Wordle Klonu</h1>
+      <div id="score-box"></div>
+    </header>
+    <div id="mode-select-holder">
+      <!-- Game mode selector will be rendered here by JS -->
+    </div>
+    <div id="lang-select-holder">
+      <!-- Manual language drop-down will be rendered here by JS -->
+    </div>
+    <button id="hint-btn" type="button" title="İpucu">💡</button>
+    <div id="game-container">
+      <!-- Game board is rendered here by JS -->
+    </div>
+    <div id="keyboard">
+      <!-- Virtual keyboard is rendered here by JS -->
+    </div>
+    <div id="message"></div>
+  </div>
+  <!-- İpucu Modal -->
+  <div id="hint-modal" class="modal">
+    <div class="modal-contesitent">
+      <h3>💡 İpucu</h3>
+      <p id="hint-text"></p>
+      <button id="hint-close-btn" class="modal-close-btn">Tamam</button>
+    </div>
+  </div>
+  <!-- Tebrikler Modal -->
+  <div id="congrats-modal" class="modal">
+    <div class="modal-content congrats-modal-content">
+      <h2 id="congrats-text">🎉 Tebrikler!</h2>
+    </div>
+  </div>
+  <!-- Liderlik Tablosu Modal -->
+  <div id="leaderboard-modal" class="modal">
+    <div class="modal-content leaderboard-modal-content">
+      <h3>🏆 Liderlik Tablosu</h3>
+      <div id="leaderboard-list"></div>
+      <button id="leaderboard-close-btn" class="modal-close-btn">Kapat</button>
+    </div>
+  </div>
+  <script src="accounts.js"></script>
+  <script src="words_tr.js"></script>
+  <script src="words_en.js"></script>
+  <script src="words_de.js"></script>
+  <script src="words_nl.js"></script>
+  <script src="words_it.js"></script>
+  <script src="words_lol.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

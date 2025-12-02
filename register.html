@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wordle - Üye Ol</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="auth-page">
+    <h2>Hesap Oluştur</h2>
+    <form id="register-form">
+      <label>
+        Kullanıcı adı
+        <input type="text" id="reg-username" required />
+      </label>
+      <label>
+        Şifre
+        <input type="password" id="reg-password" required />
+      </label>
+      <label>
+        Şifre (tekrar)
+        <input type="password" id="reg-password2" required />
+      </label>
+      <label class="show-password">
+        <input type="checkbox" id="reg-show-password" />
+        Şifreyi göster
+      </label>
+      <button type="submit">Üye Ol</button>
+      <p id="reg-message" class="auth-message"></p>
+    </form>
+    <p>
+      Zaten hesabın var mı?
+      <a href="login.html">Giriş yap</a> veya
+      <a href="index.html">Oyuna dön</a>
+    </p>
+  </div>
+
+  <script src="accounts.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('register-form');
+      const userEl = document.getElementById('reg-username');
+      const pwEl = document.getElementById('reg-password');
+      const pw2El = document.getElementById('reg-password2');
+      const msgEl = document.getElementById('reg-message');
+      const showCb = document.getElementById('reg-show-password');
+
+      showCb.addEventListener('change', () => {
+        const type = showCb.checked ? 'text' : 'password';
+        pwEl.type = type;
+        pw2El.type = type;
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msgEl.textContent = '';
+        const u = userEl.value.trim();
+        const p1 = pwEl.value;
+        const p2 = pw2El.value;
+
+        if (p1 !== p2) {
+          msgEl.textContent = 'Şifreler uyuşmuyor.';
+          return;
+        }
+
+        const res = await registerAccount(u, p1);
+        msgEl.textContent = res.message;
+        if (res.ok) {
+          // Otomatik giriş ve oyuna dön
+          currentUser = u;
+          saveCurrentUser(u);
+          window.location.href = 'index.html';
+        }
+      });
+    });
+  </script>
+</body>
+</html>
+
+

@@ -1,126 +1,208 @@
+// server.js – Render uyumlu backend + hesap/puan API’si
+
 const express = require("express");
-const path = require("path");
 const fs = require("fs");
+const path = require("path");
 
 const app = express();
-app.use(express.json()); // JSON body
 
-// STATIC FILES (index.html, script.js, style.css vs.)
-app.use(express.static(__dirname));
-
-// PORT (Render için şart)
+// Render için PORT değişkenini kullan
 const PORT = process.env.PORT || 3000;
 
-// accounts-data.json
+// JSON parse
+app.use(express.json());
+
+// Statik dosyaları (index.html, script.js vs.) servis et
+app.use(express.static(path.join(__dirname)));
+
+// Hesap dosyası
 const DATA_FILE = path.join(__dirname, "accounts-data.json");
 
+// ---- Yardımcı fonksiyonlar ----
 function loadAccounts() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      fs.writeFileSync(DATA_FILE, JSON.stringify({}, null, 2), "utf-8");
-      return {};
+      // Dosya yoksa temel yapı ile oluştur
+      const initial = { accounts: {} };
+      fs.writeFileSync(DATA_FILE, JSON.stringify(initial, null, 2), "utf8");
+      return initial.accounts;
     }
-    const raw = fs.readFileSync(DATA_FILE, "utf-8");
-    return raw ? JSON.parse(raw) : {};
-  } catch (e) {
-    console.error("Failed to load accounts-data.json", e);
+    const raw = fs.readFileSync(DATA_FILE, "utf8");
+    const parsed = JSON.parse(raw);
+    return parsed.accounts || {};
+  } catch (err) {
+    console.error("accounts-data.json okunamadı:", err);
     return {};
   }
 }
 
 function saveAccounts(accounts) {
   try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(accounts, null, 2), "utf-8");
-  } catch (e) {
-    console.error("Failed to save accounts-data.json", e);
+    fs.writeFileSync(
+      DATA_FILE,
+      JSON.stringify({ accounts }, null, 2),
+      "utf8"
+    );
+  } catch (err) {
+    console.error("accounts-data.json yazılamadı:", err);
   }
 }
 
-function validatePasswordServer(pw) {
-  if (!pw || pw.length < 8) return "Şifre en az 8 karakter olmalı.";
-  if (!/[A-ZÇĞİÖŞÜ]/.test(pw)) return "Şifre en az 1 büyük harf içermeli.";
-  const digitCount = (pw.match(/\d/g) || []).length;
-  if (digitCount < 3) return "Şifre en az 3 sayı içermeli.";
-  if (!/[^\w\s]/.test(pw)) return "Şifre en az 1 özel karakter (. , ! ? vb.) içermeli.";
-  return null;
+// Güvenlik açısından şifreyi plain text tutmak kötü ama
+// bu proje için basit tutuyoruz.
+function sanitizeAccount(acc) {
+  return {
+    username: acc.username,
+    score: acc.score || 0,
+    dailyPlayed: acc.dailyPlayed || {}
+  };
 }
 
-// -------- API ----------
+// ---- API endpoint’leri ----
 
+// Tüm hesapları döndür (frontend ilk açılışta çağırıyor)
 app.get("/api/accounts", (req, res) => {
   const accounts = loadAccounts();
-  res.json({ ok: true, accounts });
+  return res.json({ ok: true, accounts });
 });
 
+// Kayıt olun
 app.post("/api/register", (req, res) => {
-  let { username, password } = req.body || {};
-  username = (username || "").trim();
-  if (!username) return res.status(400).json({ ok: false, message: "Kullanıcı adı boş olamaz." });
+  const { username, password } = req.body || {};
 
-  const pwErr = validatePasswordServer(password);
-  if (pwErr) return res.status(400).json({ ok: false, message: pwErr });
+  const user = (username || "").trim();
+  const pw = password || "";
+
+  if (!user) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Kullanıcı adı boş olamaz." });
+  }
+  if (!pw) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Şifre boş olamaz." });
+  }
 
   const accounts = loadAccounts();
-  if (accounts[username]) return res.status(400).json({ ok: false, message: "Bu kullanıcı adı zaten kullanılıyor." });
 
-  accounts[username] = { username, password, score: 0, dailyPlayed: {} };
+  if (accounts[user]) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Bu kullanıcı adı zaten kayıtlı." });
+  }
+
+  accounts[user] = {
+    username: user,
+    password: pw,      // uyarı: demo amaçlı
+    score: 0,
+    dailyPlayed: {}
+  };
+
   saveAccounts(accounts);
-  res.json({ ok: true, message: "Hesap oluşturuldu.", account: accounts[username] });
+
+  return res.json({
+    ok: true,
+    account: sanitizeAccount(accounts[user])
+  });
 });
 
+// Giriş yap
 app.post("/api/login", (req, res) => {
-  let { username, password } = req.body || {};
-  username = (username || "").trim();
+  const { username, password } = req.body || {};
+  const user = (username || "").trim();
+  const pw = password || "";
+
   const accounts = loadAccounts();
-  const acc = accounts[username];
-  if (!acc) return res.status(400).json({ ok: false, message: "Kullanıcı bulunamadı." });
-  if (acc.password !== password) return res.status(400).json({ ok: false, message: "Şifre hatalı." });
-  res.json({ ok: true, message: "Giriş başarılı.", account: acc });
+  const acc = accounts[user];
+
+  if (!acc) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Böyle bir kullanıcı yok." });
+  }
+  if (acc.password !== pw) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Şifre hatalı." });
+  }
+
+  return res.json({
+    ok: true,
+    account: sanitizeAccount(acc)
+  });
 });
 
+// Puan ekle
 app.post("/api/addScore", (req, res) => {
-  let { username, score } = req.body || {};
-  username = (username || "").trim();
+  const { username, score } = req.body || {};
+  const user = (username || "").trim();
   const s = Number(score) || 0;
+
+  if (!user) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Kullanıcı adı gerekli." });
+  }
+
   const accounts = loadAccounts();
-  const acc = accounts[username];
-  if (!acc) return res.status(400).json({ ok: false, message: "Kullanıcı bulunamadı." });
-  acc.score += s;
+  const acc = accounts[user];
+  if (!acc) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Kullanıcı bulunamadı." });
+  }
+
+  acc.score = (acc.score || 0) + s;
   saveAccounts(accounts);
-  res.json({ ok: true, score: acc.score });
+
+  return res.json({ ok: true, account: sanitizeAccount(acc) });
 });
 
+// Günlük oyun işaretle
 app.post("/api/markDaily", (req, res) => {
-  let { username, date } = req.body || {};
-  username = (username || "").trim();
-  const today = date || new Date().toISOString().slice(0, 10);
+  const { username, date } = req.body || {};
+  const user = (username || "").trim();
+  const d = date || new Date().toISOString().slice(0, 10);
+
   const accounts = loadAccounts();
-  const acc = accounts[username];
-  if (!acc) return res.status(400).json({ ok: false, message: "Kullanıcı bulunamadı." });
-  if (!acc.dailyPlayed) acc.dailyPlayed = {};
-  acc.dailyPlayed[today] = true;
+  const acc = accounts[user];
+  if (!acc) {
+    return res
+      .status(400)
+      .json({ ok: false, message: "Kullanıcı bulunamadı." });
+  }
+
+  acc.dailyPlayed = acc.dailyPlayed || {};
+  acc.dailyPlayed[d] = true;
   saveAccounts(accounts);
-  res.json({ ok: true });
+
+  return res.json({ ok: true, account: sanitizeAccount(acc) });
 });
 
+// Liderlik tablosu
 app.get("/api/leaderboard", (req, res) => {
+  const limit = req.query.limit ? Number(req.query.limit) : null;
   const accounts = loadAccounts();
-  const users = Object.values(accounts)
-    .map(acc => ({ username: acc.username, score: Number(acc.score) || 0 }))
-    .sort((a, b) => b.score - a.score);
 
-  const limit = Number(req.query.limit) || users.length;
-  res.json({ ok: true, leaderboard: users.slice(0, limit), total: users.length });
+  const list = Object.values(accounts)
+    .map(sanitizeAccount)
+    .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  const limited = limit ? list.slice(0, limit) : list;
+
+  return res.json({
+    ok: true,
+    leaderboard: limited
+  });
 });
 
-// ---------- FRONTEND ROOT ----------
-
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+// Fallback (önemli değil ama dursun)
+app.get("/api/health", (req, res) => {
+  res.json({ ok: true, status: "up" });
 });
 
-// ---------- SERVER LISTEN ----------
-
+// Sunucuyu başlat
 app.listen(PORT, () => {
-  console.log("Server çalışıyor → PORT:", PORT);
+  console.log(`Server is running on port ${PORT}`);
 });

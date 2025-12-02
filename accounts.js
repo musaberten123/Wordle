@@ -1,7 +1,7 @@
 // Basit hesap yönetimi (arka plandaki Node.js sunucusu ve accounts-data.json ile)
 // NOT: Bu dosya artık kullanıcıları localStorage'da değil, server.js üzerinden diskte saklar.
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = '/api';
 const CURRENT_USER_KEY = 'wordle_current_user_v1';
 
 let accountsStore = {};

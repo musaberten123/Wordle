@@ -10,7 +10,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // *** Admin anahtarı (sadece sen biliyorsun) ***
-const ADMIN_KEY = process.env.ADMIN_KEY || "musa-super-secret-123"; // İstersen değiştir
+const ADMIN_KEY = process.env.ADMIN_KEY || "kakyE212019!"; // İstersen değiştir
 
 // JSON parse
 app.use(express.json());
